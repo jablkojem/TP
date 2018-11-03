@@ -49,15 +49,18 @@ public class MainActivity extends AppCompatActivity implements MyInterface {
                 String deviceName = device.getName();
                 String deviceHardwareAddress = device.getAddress(); // MAC address
 
-//                if(device.getName().startsWith("")){
-
-                    ConnectedThread thread = new ConnectedThread(this, device);
+                if(device.getName().contains("Dexcom")){
+                    Toast.makeText(getBaseContext(), "Device " + deviceName + " is going to be connected", Toast.LENGTH_SHORT).show();
+                    ConnectedThread thread = new ConnectedThread(this, device,this);
                     thread.execute();
-
-//                }
+                }
 
             }
         }
+        else{
+            Toast.makeText(getBaseContext(), "No devices paired", Toast.LENGTH_SHORT).show();
+        }
+        Toast.makeText(getBaseContext(), "End", Toast.LENGTH_SHORT).show();
 
     }
 
@@ -108,8 +111,8 @@ public class MainActivity extends AppCompatActivity implements MyInterface {
 
         Map<String, String> params = new HashMap<>();
         params.put("id", UUID.randomUUID().toString());
-        params.put("table", "TEPLOMER");
-        params.put("teplota", String.format("%.2f", thermo));
+        params.put("table", "GLUKOMER");
+        params.put("glukoza", String.format("%.2f", thermo));
         params.put("datum", sdf.format(new Date()));
 
         JSONObject object = new JSONObject(params);
