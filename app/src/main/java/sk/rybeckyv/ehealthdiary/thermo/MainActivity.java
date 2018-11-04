@@ -1,8 +1,12 @@
 package sk.rybeckyv.ehealthdiary.thermo;
 
+import android.annotation.TargetApi;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanCallback;
 import android.content.Intent;
+import android.os.ParcelUuid;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -20,6 +24,7 @@ import com.android.volley.toolbox.Volley;
 import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,6 +45,8 @@ public class MainActivity extends AppCompatActivity implements MyInterface {
 
     public void getDataThermo(){
 
+
+
         BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
 
@@ -50,6 +57,10 @@ public class MainActivity extends AppCompatActivity implements MyInterface {
                 String deviceHardwareAddress = device.getAddress(); // MAC address
 
                 if(device.getName().contains("Dexcom")){
+
+                    ParcelUuid[] uuids = device.getUuids();
+                    Toast.makeText(getBaseContext(), "UUIDs : " + Arrays.toString(uuids), Toast.LENGTH_SHORT).show();
+
                     Toast.makeText(getBaseContext(), "Device " + deviceName + " is going to be connected", Toast.LENGTH_SHORT).show();
                     ConnectedThread thread = new ConnectedThread(this, device,this);
                     thread.execute();
