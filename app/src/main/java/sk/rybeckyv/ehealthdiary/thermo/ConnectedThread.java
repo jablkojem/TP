@@ -52,6 +52,7 @@ class ConnectedThread extends AsyncTask<Void, Double, Void> {
 
 
         try {
+            // -------------------------
 
             activity.runOnUiThread(new Runnable() {
                 public void run() {
@@ -59,6 +60,19 @@ class ConnectedThread extends AsyncTask<Void, Double, Void> {
                 }
             });
 
+            Boolean bondStarted= this.device.createBond();
+            if (bondStarted){
+            activity.runOnUiThread(new Runnable() {
+                public void run() {
+                    Toast.makeText(activity, "bond started", Toast.LENGTH_SHORT).show();
+                }
+            });}else{
+                activity.runOnUiThread(new Runnable() {
+                    public void run() {
+                        Toast.makeText(activity, "bond is false", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
 
             mmSocket = this.device.createInsecureRfcommSocketToServiceRecord(GLUCOSE_SERVICE);
             activity.runOnUiThread(new Runnable() {
