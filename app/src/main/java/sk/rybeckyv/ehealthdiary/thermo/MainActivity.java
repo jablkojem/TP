@@ -13,7 +13,9 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -51,11 +53,45 @@ import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity implements MyInterface {
 
-    private final int REQUEST_ENABLE_BT = 1;
-    private BluetoothGatt mBluetoothGatt;
+    private final static String TAG = MainActivity.class.getSimpleName();
+    private String mDeviceName;
+    private String mDeviceAddress;
+    private boolean is_connected = false;
+    SharedPreferences prefs;
 
+    public static String CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
+    public static String HM_10_SERVICE = "0000ffe0-0000-1000-8000-00805f9b34fb";
+    public static String HM_RX_TX = "0000ffe1-0000-1000-8000-00805f9b34fb";
+
+    public MainActivity dexCollectionService;
+
+    private BluetoothManager mBluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
-    private boolean mScanning;
+    private String mBluetoothDeviceAddress;
+    private BluetoothGatt mBluetoothGatt;
+    private int mConnectionState = STATE_DISCONNECTED;
+    private BluetoothDevice device;
+
+    private Context mContext = null;
+
+    private static final int STATE_DISCONNECTED = BluetoothProfile.STATE_DISCONNECTED;
+    private static final int STATE_DISCONNECTING = BluetoothProfile.STATE_DISCONNECTING;
+    private static final int STATE_CONNECTING = BluetoothProfile.STATE_CONNECTING;
+    private static final int STATE_CONNECTED = BluetoothProfile.STATE_CONNECTED;
+
+    public final static String ACTION_DATA_AVAILABLE = "com.example.bluetooth.le.ACTION_DATA_AVAILABLE";
+    public final static UUID xDripDataService = UUID.fromString(HM_10_SERVICE);
+    public final static UUID xDripDataCharacteristic = UUID.fromString(HM_RX_TX);
+
+
+
+
+
+    private final int REQUEST_ENABLE_BT = 1;
+//    private BluetoothGatt mBluetoothGatt;
+//
+//    private BluetoothAdapter mBluetoothAdapter;
+//    private boolean mScanning;
     private Handler mHandler;
     private List<BluetoothDevice> bluetoothDevices;
     private BluetoothDevice myDevice;
@@ -102,253 +138,66 @@ new sensor started
     private final BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            Toast.makeText(getBaseContext(), "ide", Toast.LENGTH_SHORT).show();
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                mConnectionState = STATE_CONNECTED;
+//                ActiveBluetoothDevice.connected();
+                Log.w(TAG, "Connected to GATT server.");
+                Toast.makeText(getBaseContext(), "Connected to GATT server", Toast.LENGTH_SHORT).show();
+                mBluetoothGatt.discoverServices();
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                mConnectionState = STATE_DISCONNECTED;
+//                ActiveBluetoothDevice.disconnected();
+                Log.w(TAG, "Disconnected from GATT server.");
+                Toast.makeText(getBaseContext(), "Disconnected from GATT server", Toast.LENGTH_SHORT).show();
 
-//            if (newState == BluetoothProfile.STATE_CONNECTED) {
-//
-//                if (mConnectionState != STATE_CONNECTED) {
-//                    // TODO sane release
-//                    PowerManager.WakeLock wl = JoH.getWakeLock("bluetooth-meter-connected", 60000);
-//                    mConnectionState = STATE_CONNECTED;
-//                    mLastConnectedDeviceAddress = gatt.getDevice().getAddress();
-//
-//                    statusUpdate("Connected to device: " + mLastConnectedDeviceAddress);
-//                    if ((playSounds() && (JoH.ratelimit("bt_meter_connect_sound", 3)))) {
-//                        JoH.playResourceAudio(R.raw.bt_meter_connect);
-//                    }
-//
-//                    Log.d(TAG, "Delay for settling");
-//                    waitFor(600);
-//                    statusUpdate("Discovering services");
-//                    service_discovery_count = 0; // reset as new non retried connnection
-//                    discover_services();
-//                    // Bluetooth_CMD.poll_queue(); // do we poll here or on service discovery - should we clear here?
-//                } else {
-//                    // TODO timeout
-//                    Log.e(TAG, "Apparently already connected - ignoring");
-//                }
-//            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-//                final int old_connection_state = mConnectionState;
-//                mConnectionState = STATE_DISCONNECTED;
-//                statusUpdate("Disconnected");
-//                if ((old_connection_state == STATE_CONNECTED) && (playSounds() && (JoH.ratelimit("bt_meter_disconnect_sound", 3)))) {
-//                    JoH.playResourceAudio(R.raw.bt_meter_disconnect);
-//                }
-//                close();
-//                refreshDeviceCache(mBluetoothGatt);
-//                Bluetooth_CMD.poll_queue();
-//                // attempt reconnect
-//                reconnect();
-//            }
+//                setRetryTimer();
+            }
         }
-
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            Toast.makeText(getBaseContext(), "ide", Toast.LENGTH_SHORT).show();
-//            if (status == BluetoothGatt.GATT_SUCCESS) {
-//                services_discovered = true;
-//                statusUpdate("Services discovered");
-//
-//                bondingstate = mBluetoothGatt.getDevice().getBondState();
-//                if (bondingstate != BluetoothDevice.BOND_BONDED) {
-//                    statusUpdate("Attempting to create pairing bond - device must be in pairing mode!");
-//                    sendDeviceUpdate(gatt.getDevice());
-//                    mBluetoothGatt.getDevice().createBond();
-//                    waitFor(1000);
-//                    bondingstate = mBluetoothGatt.getDevice().getBondState();
-//                    if (bondingstate != BluetoothDevice.BOND_BONDED) {
-//                        statusUpdate("Pairing appeared to fail");
-//                    } else {
-//                        sendDeviceUpdate(gatt.getDevice());
-//                    }
-//                } else {
-//                    Log.d(TAG, "Device is already bonded - good");
-//                }
-//
-//                if (d) {
-//                    List<BluetoothGattService> gatts = getSupportedGattServices();
-//                    for (BluetoothGattService bgs : gatts) {
-//                        Log.d(TAG, "DEBUG: " + bgs.getUuid());
-//                    }
-//                }
-//
-//                if (queue.isEmpty()) {
-//                    statusUpdate("Requesting data from meter");
-//                    Bluetooth_CMD.read(DEVICE_INFO_SERVICE, MANUFACTURER_NAME, "get device manufacturer");
-//                    Bluetooth_CMD.read(CURRENT_TIME_SERVICE, TIME_CHARACTERISTIC, "get device time");
-//
-//                    Bluetooth_CMD.notify(GLUCOSE_SERVICE, GLUCOSE_CHARACTERISTIC, "notify new glucose record");
-//                    Bluetooth_CMD.enable_notification_value(GLUCOSE_SERVICE, GLUCOSE_CHARACTERISTIC, "notify new glucose value");
-//
-//                    Bluetooth_CMD.enable_notification_value(GLUCOSE_SERVICE, CONTEXT_CHARACTERISTIC, "notify new context value");
-//                    Bluetooth_CMD.notify(GLUCOSE_SERVICE, CONTEXT_CHARACTERISTIC, "notify new glucose context");
-//
-//                    Bluetooth_CMD.enable_indications(GLUCOSE_SERVICE, RECORDS_CHARACTERISTIC, "readings indication request");
-//                    Bluetooth_CMD.notify(GLUCOSE_SERVICE, RECORDS_CHARACTERISTIC, "notify glucose record");
-//                    Bluetooth_CMD.write(GLUCOSE_SERVICE, RECORDS_CHARACTERISTIC, RecordsCmdTx.getAllRecords(), "request all readings");
-//                    Bluetooth_CMD.notify(GLUCOSE_SERVICE, GLUCOSE_CHARACTERISTIC, "notify new glucose record again"); // dummy
-//
-//                    Bluetooth_CMD.poll_queue();
-//
-//                } else {
-//                    Log.e(TAG, "Queue is not empty so not scheduling anything..");
-//                }
-//            } else {
-//                Log.w(TAG, "onServicesDiscovered received: " + status);
-//            }
+            Toast.makeText(getBaseContext(), "service discovered", Toast.LENGTH_SHORT).show();
+
+
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                BluetoothGattService gattService = mBluetoothGatt.getService(xDripDataService);
+                if (gattService != null) {
+                    BluetoothGattCharacteristic gattCharacteristic = gattService.getCharacteristic(xDripDataCharacteristic);
+                    if (gattCharacteristic != null ) {
+                        final int charaProp = gattCharacteristic.getProperties();
+
+                        if ((charaProp | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
+                            mBluetoothGatt.setCharacteristicNotification(gattCharacteristic, true);
+                        } else {
+                            Log.e(TAG, "characteristic " + gattCharacteristic.getUuid() + " doesn't have notify properties");
+                            Toast.makeText(getBaseContext(), "characteristic " + gattCharacteristic.getUuid() + " doesn't have notify properties", Toast.LENGTH_SHORT).show();
+
+                        }
+                    } else {
+                        Log.e(TAG, "characteristic " + xDripDataCharacteristic + " not found");
+
+                    }
+                } else {
+                    Log.e(TAG, "service " + xDripDataCharacteristic + " not found");
+                }
+            }
         }
 
         @Override
-        public void onDescriptorWrite(BluetoothGatt gatt,
-                                      BluetoothGattDescriptor descriptor,
-                                      int status) {
-            Toast.makeText(getBaseContext(), "ide", Toast.LENGTH_SHORT).show();
-//            Log.d(TAG, "Descriptor written to: " + descriptor.getUuid() + " getvalue: " + JoH.bytesToHex(descriptor.getValue()) + " status: " + status);
-//            if (status == BluetoothGatt.GATT_SUCCESS) {
-//                Bluetooth_CMD.poll_queue();
-//            } else {
-//                Log.e(TAG, "Got gatt descriptor write failure: " + status);
-//                Bluetooth_CMD.retry_last_command(status);
-//            }
-        }
+        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            final byte[] data = characteristic.getValue();
 
+            Toast.makeText(getBaseContext(), "characteristic changed", Toast.LENGTH_SHORT).show();
 
-        @Override
-        public void onCharacteristicWrite(BluetoothGatt gatt,
-                                          BluetoothGattCharacteristic characteristic,
-                                          int status) {
-            Toast.makeText(getBaseContext(), "ide", Toast.LENGTH_SHORT).show();
-//            Log.d(TAG, "Written to: " + characteristic.getUuid() + " getvalue: " + JoH.bytesToHex(characteristic.getValue()) + " status: " + status);
-//            if (status == BluetoothGatt.GATT_SUCCESS) {
-//                if (ack_blocking()) {
-//                    if (d)
-//                        Log.d(TAG, "Awaiting ACK before next command: " + awaiting_ack + ":" + awaiting_data);
-//                } else {
-//                    Bluetooth_CMD.poll_queue();
-//                }
-//            } else {
-//                Log.e(TAG, "Got gatt write failure: " + status);
-//                Bluetooth_CMD.retry_last_command(status);
-//            }
-        }
-
-        @Override
-        public void onCharacteristicRead(BluetoothGatt gatt,
-                                         BluetoothGattCharacteristic characteristic,
-                                         int status) {
-            Toast.makeText(getBaseContext(), "ide", Toast.LENGTH_SHORT).show();
-//            if (status == BluetoothGatt.GATT_SUCCESS) {
-//
-//                if (characteristic.getUuid().equals(TIME_CHARACTERISTIC)) {
-//                    UserError.Log.d(TAG, "Got time characteristic read data");
-//                    ct = new CurrentTimeRx(characteristic.getValue());
-//                    statusUpdate("Device time: " + ct.toNiceString());
-//                } else if (characteristic.getUuid().equals(DATE_TIME_CHARACTERISTIC)) {
-//                    UserError.Log.d(TAG, "Got date time characteristic read data");
-//                    ct = new CurrentTimeRx(characteristic.getValue());
-//                    statusUpdate("Device time: " + ct.toNiceString());
-//                } else if (characteristic.getUuid().equals(MANUFACTURER_NAME)) {
-//                    mLastManufacturer = characteristic.getStringValue(0);
-//                    UserError.Log.d(TAG, "Manufacturer Name: " + mLastManufacturer);
-//                    statusUpdate("Device from: " + mLastManufacturer);
-//
-//                    await_acks = false; // reset
-//
-//                    // Roche Aviva Connect uses a DateTime characteristic instead
-//                    if (mLastManufacturer.startsWith("Roche")) {
-//                        Bluetooth_CMD.transmute_command(CURRENT_TIME_SERVICE, TIME_CHARACTERISTIC,
-//                                GLUCOSE_SERVICE, DATE_TIME_CHARACTERISTIC);
-//                    }
-//
-//                    // Diamond Mobile Mini DM30b firmware v1.2.4
-//                    // v1.2.4 has reversed sequence numbers and first item is last item and no clock access
-//                    if (mLastManufacturer.startsWith("TaiDoc")) {
-//                        // no time service!
-//                        Bluetooth_CMD.delete_command(CURRENT_TIME_SERVICE, TIME_CHARACTERISTIC);
-//                        ct = new CurrentTimeRx(); // implicitly trust meter time stamps!! beware daylight saving time changes
-//                        ct.noClockAccess = true;
-//                        ct.sequenceNotReliable = true;
-//
-//                        // no glucose context!
-//                        Bluetooth_CMD.delete_command(GLUCOSE_SERVICE, CONTEXT_CHARACTERISTIC);
-//                        Bluetooth_CMD.delete_command(GLUCOSE_SERVICE, CONTEXT_CHARACTERISTIC);
-//
-//                        // only request last reading - diamond mini seems to make sequence 0 be the most recent record
-//                        Bluetooth_CMD.replace_command(GLUCOSE_SERVICE, RECORDS_CHARACTERISTIC, "W",
-//                                new Bluetooth_CMD("W", GLUCOSE_SERVICE, RECORDS_CHARACTERISTIC, RecordsCmdTx.getFirstRecord(), "request newest reading"));
-//
-//                    }
-//
-//                    // Caresens Dual
-//                    if (mLastManufacturer.startsWith("i-SENS")) {
-//                        Bluetooth_CMD.delete_command(CURRENT_TIME_SERVICE, TIME_CHARACTERISTIC);
-//                        ct = new CurrentTimeRx(); // implicitly trust meter time stamps!! beware daylight saving time changes
-//                        ct.noClockAccess = true;
-//                        Bluetooth_CMD.notify(ISENS_TIME_SERVICE, ISENS_TIME_CHARACTERISTIC, "notify isens clock");
-//                        Bluetooth_CMD.write(ISENS_TIME_SERVICE, ISENS_TIME_CHARACTERISTIC, new TimeTx(JoH.tsl()).getByteSequence(), "set isens clock");
-//                        Bluetooth_CMD.write(ISENS_TIME_SERVICE, ISENS_TIME_CHARACTERISTIC, new TimeTx(JoH.tsl()).getByteSequence(), "set isens clock");
-//
-//                        Bluetooth_CMD.replace_command(GLUCOSE_SERVICE, RECORDS_CHARACTERISTIC, "W",
-//                                new Bluetooth_CMD("W", GLUCOSE_SERVICE, RECORDS_CHARACTERISTIC, RecordsCmdTx.getNewerThanSequence(getHighestSequence()), "request reading newer than " + getHighestSequence()));
-//
-//                    }
-//
-//                    // LifeScan Verio Flex
-//                    if (mLastManufacturer.startsWith("LifeScan")) {
-//
-//                        await_acks = true;
-//
-//                        Bluetooth_CMD.empty_queue(); // Verio Flex isn't standards compliant
-//
-//                        Bluetooth_CMD.notify(VERIO_F7A1_SERVICE, VERIO_F7A3_NOTIFICATION, "verio general notification");
-//                        Bluetooth_CMD.enable_notification_value(VERIO_F7A1_SERVICE, VERIO_F7A3_NOTIFICATION, "verio general notify value");
-//                        Bluetooth_CMD.write(VERIO_F7A1_SERVICE, VERIO_F7A2_WRITE, VerioHelper.getTimeCMD(), "verio ask time");
-//                        Bluetooth_CMD.write(VERIO_F7A1_SERVICE, VERIO_F7A2_WRITE, VerioHelper.getTcounterCMD(), "verio T data query"); // don't change order with R
-//                        Bluetooth_CMD.write(VERIO_F7A1_SERVICE, VERIO_F7A2_WRITE, VerioHelper.getRcounterCMD(), "verio R data query"); // don't change order with T
-//
-//                    }
-//
-//                } else {
-//                    Log.d(TAG, "Got a different charactersitic! " + characteristic.getUuid().toString());
-//
-//                }
-//                Bluetooth_CMD.poll_queue();
-//            } else {
-//                Log.e(TAG, "Got gatt read failure: " + status);
-//                Bluetooth_CMD.retry_last_command(status);
-//            }
-        }
-
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt,
-                                            BluetoothGattCharacteristic characteristic) {
-            Toast.makeText(getBaseContext(), "ide", Toast.LENGTH_SHORT).show();
-//
-//            final PowerManager.WakeLock wl = JoH.getWakeLock("bt-meter-characterstic-change", 30000);
-//            try {
-//                processCharacteristicChange(gatt, characteristic);
-//                Bluetooth_CMD.poll_queue();
-//            } finally {
-//                JoH.releaseWakeLock(wl);
-//            }
+//            if (data != null && data.length > 0) { setSerialDataToTransmitterRawData(data, data.length); }
         }
     };
-
 
     public synchronized void getDataThermo() throws InterruptedException {
         BluetoothManager mBluetoothManage = (BluetoothManager) getSystemService(getApplicationContext().BLUETOOTH_SERVICE);
 
         BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
-
-
-//        if (mBluetoothManage != null) {
-//            BluetoothAdapter mBluetoothAdapter = mBluetoothManage.getAdapter();
-//        } else {
-//            Toast.makeText(getBaseContext(), "bluetooth manager not good", Toast.LENGTH_SHORT).show();
-//        }
-
 
         if (!getPackageManager().hasSystemFeature(getPackageManager().FEATURE_BLUETOOTH_LE)) {
             Toast.makeText(getBaseContext(), "ble not supported", Toast.LENGTH_SHORT).show();
@@ -436,9 +285,93 @@ new sensor started
             return;
         } else {
 
-            getDataThermo();
+//            getDataThermo();
+
+            BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+            Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+
+            if (pairedDevices.size() > 0) {
+
+                for (BluetoothDevice device : pairedDevices) {
+                    String deviceName = device.getName();
+                    String deviceHardwareAddress = device.getAddress(); // MAC address
+
+                    if (deviceName.contains("Dexcom")) {
+                        attemptConnection(device);
+                    }
+                }
+            }
+
 
         }
+    }
+
+    public void attemptConnection(BluetoothDevice btDevice) {
+        mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        if (mBluetoothManager != null) {
+            mBluetoothAdapter = mBluetoothManager.getAdapter();
+            if (mBluetoothAdapter != null) {
+                if (device != null) {
+                    Toast.makeText(getBaseContext(), "STATE_DISCONNECTED", Toast.LENGTH_SHORT).show();
+                    mConnectionState = STATE_DISCONNECTED;
+                    for (BluetoothDevice bluetoothDevice : mBluetoothManager.getConnectedDevices(BluetoothProfile.GATT)) {
+                        if (bluetoothDevice.getAddress().compareTo(device.getAddress()) == 0) {
+                            mConnectionState = STATE_CONNECTED;
+                            Toast.makeText(getBaseContext(), "STATE_CONNECTED gatt", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+
+                Log.w(TAG, "Connection state: " + mConnectionState);
+                if (mConnectionState == STATE_DISCONNECTED || mConnectionState == STATE_DISCONNECTING) {
+                    if (btDevice != null) {
+                        mDeviceName = btDevice.getName();
+                        mDeviceAddress = btDevice.getAddress();
+                        if (mBluetoothAdapter.isEnabled() && mBluetoothAdapter.getRemoteDevice(mDeviceAddress) != null) {
+                            Toast.makeText(getBaseContext(), "is going to connect", Toast.LENGTH_SHORT).show();
+                            connect(mDeviceAddress);
+                            Toast.makeText(getBaseContext(), "after connect", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                    }
+                } else if (mConnectionState == STATE_CONNECTED) { //WOOO, we are good to go, nothing to do here!
+                    Log.w(TAG, "Looks like we are already connected, going to read!");
+                    Toast.makeText(getBaseContext(), "Looks like we are already connected, going to read!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+        }
+//        setRetryTimer();
+    }
+
+    public boolean connect(final String address) {
+        Log.w(TAG, "going to connect to device at address" + address);
+        if (mBluetoothAdapter == null || address == null) {
+            Log.w(TAG, "BluetoothAdapter not initialized or unspecified address.");
+            Toast.makeText(getBaseContext(), "BluetoothAdapter not initialized or unspecified address.", Toast.LENGTH_SHORT).show();
+//            setRetryTimer();
+            return false;
+        }
+        if (mBluetoothGatt != null) {
+            Toast.makeText(getBaseContext(), "BGatt isnt null, Closing.", Toast.LENGTH_SHORT).show();
+
+            Log.w(TAG, "BGatt isnt null, Closing.");
+            mBluetoothGatt.close();
+            mBluetoothGatt = null;
+        }
+        device = mBluetoothAdapter.getRemoteDevice(address);
+        if (device == null) {
+            Toast.makeText(getBaseContext(), "Device not found.  Unable to connect.", Toast.LENGTH_SHORT).show();
+            Log.w(TAG, "Device not found.  Unable to connect.");
+//            setRetryTimer();
+            return false;
+        }
+        Log.w(TAG, "Trying to create a new connection.");
+        Toast.makeText(getBaseContext(), "Trying to create a new connection.", Toast.LENGTH_SHORT).show();
+
+        mBluetoothGatt = device.connectGatt(getApplicationContext(), true, mGattCallback);
+        mConnectionState = STATE_CONNECTING;
+        return true;
     }
 
     public void send(View view) {
