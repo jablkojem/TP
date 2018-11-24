@@ -18,12 +18,16 @@ import java.util.UUID;
 class ConnectedThread extends AsyncTask<Void, Double, Void> {
 
     private String TAG = "M_LOG";
-    private static final UUID STANDARD_SPP_UUID = UUID.fromString("F8083534-849E-531C-C594-30F1F86A4EA5");
+    private static final UUID STANDARD_SPP_UUID = UUID.fromString("00001800-0000-1000-8000-00805f9b34fb");
     public static final UUID Authentication = UUID.fromString("F8083535-849E-531C-C594-30F1F86A4EA5");
     static final UUID CGM_CHARACTERISTIC_INDICATE = UUID.fromString("669A9101-0008-968F-E311-6050405558B3");
     UUID DEFAULT_SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     public static final UUID Communication = UUID.fromString("F8083533-849E-531C-C594-30F1F86A4EA5");
-    private static final UUID GLUCOSE_SERVICE = UUID.fromString("00001808-0000-1000-8000-00805f9b34fb");
+    private static final UUID GLUCOSE_SERVICE = UUID.fromString("0000febc-0000-1000-8000-00805f9b34fb");
+
+//    00001800-0000-1000-8000-00805f9b34fb
+//    00001801-0000-1000-8000-00805f9b34fb
+//    0000180a-0000-1000-8000-00805f9b34fb
 
     private MyInterface myInterface;
     private BluetoothDevice device;
@@ -60,7 +64,7 @@ class ConnectedThread extends AsyncTask<Void, Double, Void> {
             });
 
 
-            mmSocket = this.device.createInsecureRfcommSocketToServiceRecord(GLUCOSE_SERVICE);
+            mmSocket = this.device.createRfcommSocketToServiceRecord(GLUCOSE_SERVICE);
             activity.runOnUiThread(new Runnable() {
                 public void run() {
                     Toast.makeText(activity, "will be connected", Toast.LENGTH_SHORT).show();
@@ -125,7 +129,7 @@ class ConnectedThread extends AsyncTask<Void, Double, Void> {
 //            publishProgress((double)filtered);
             onProgressUpdate((double) filtered);
 
-        } catch (IOException connectException) {
+        } catch (final IOException connectException) {
             // Unable to connect; close the socket and return.
             try {
                 mmSocket.close();
@@ -135,7 +139,7 @@ class ConnectedThread extends AsyncTask<Void, Double, Void> {
 
             activity.runOnUiThread(new Runnable() {
                 public void run() {
-                    Toast.makeText(activity, "IOexception", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(activity, "IOexception : "+ connectException.toString(), Toast.LENGTH_SHORT).show();
                 }
             });
 
