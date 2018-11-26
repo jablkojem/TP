@@ -61,6 +61,8 @@ public class MainActivity extends AppCompatActivity implements MyInterface {
     private final UUID blukonDataService = UUID.fromString("436a62c0-082e-4ce8-a08b-01d81f195b24");
     public final UUID nrfDataService = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
     public final UUID majo = UUID.fromString("0000febc-0000-1000-8000-00805f9b34fb");
+    private static final UUID GLUCOSE_CHARACTERISTIC = UUID.fromString("00002a18-0000-1000-8000-00805f9b34fb");
+
     public final static String ACTION_GATT_DISCONNECTED =
             "com.example.bluetooth.le.ACTION_GATT_DISCONNECTED";
     public final static String ACTION_GATT_CONNECTED =
@@ -126,24 +128,19 @@ public class MainActivity extends AppCompatActivity implements MyInterface {
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
 
 
-            BluetoothGattService cgmService = gatt.getService(majo);
+            List<BluetoothGattService> services = gatt.getServices();
+            System.out.println(services.toString());
+            BluetoothGattService cgmService = gatt.getService(GLUCOSE_SERVICE);
             if (cgmService != null) {
-                BluetoothGattCharacteristic authCharacteristic = cgmService.getCharacteristic(Authentication);
-                BluetoothGattCharacteristic controlCharacteristic = cgmService.getCharacteristic(Control);
+                BluetoothGattCharacteristic glucoseCharacteristic = cgmService.getCharacteristic(GLUCOSE_CHARACTERISTIC);
+                gatt.setCharacteristicNotification(glucoseCharacteristic, true);
+
+
+                BluetoothGattDescriptor descriptor = glucoseCharacteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_UUID);
+
+                descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                gatt.writeDescriptor(descriptor);
             }
-
-            BluetoothGattCharacteristic characteristic =
-                    gatt.getService(Control)
-                            .getCharacteristic(CharacteristicE);
-            gatt.setCharacteristicNotification(characteristic, true);
-
-            BluetoothGattDescriptor descriptor =
-                    characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_UUID);
-
-            descriptor.setValue(
-                    BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            gatt.writeDescriptor(descriptor);
-
 //            RxBleLog.d("onServicesDiscovered status=%d", status);
 //            nativeCallbackDispatcher.notifyNativeServicesDiscoveredCallback(gatt, status);
 //            super.onServicesDiscovered(gatt, status);
